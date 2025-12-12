@@ -1,0 +1,1336 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OLSON - Contador de Sobriedad</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+
+    <style>
+        /* Variables de Color */
+        :root {
+            --negro-principal: #000000;
+            --verde-neon: #39ff14; /* Verde vibrante */
+            --blanco: #ffffff;
+            --gris-oscuro: #1a1a1a;
+            --rojo-neon: #ff073a;
+        }
+
+        /* Estilos Globales y Fondo */
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: var(--negro-principal);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-size: cover;
+            background-position: center;
+            min-height: 100vh;
+            color: var(--blanco);
+        }
+
+        /* Estilos del Banner/Encabezado */
+        .banner {
+            width: 100%;
+            min-height: 100px; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+            margin-bottom: 20px;
+        }
+
+        .app-title {
+            font-size: 2.5em; 
+            font-weight: bold;
+            color: var(--blanco);
+            text-shadow: 0 0 10px var(--verde-neon), 0 0 20px var(--verde-neon);
+            letter-spacing: 5px;
+        }
+
+        /* Contenedor Principal del Contador */
+        .contador-container {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 30px;
+            background-color: rgba(0, 0, 0, 0.8);
+            border-radius: 15px;
+            border: 2px solid var(--verde-neon);
+            box-shadow: 0 0 30px var(--verde-neon);
+            max-width: 90%;
+            width: 400px;
+            margin-bottom: 20px;
+            opacity: 0.3; /* Inicialmente opaco, se aclara al loguearse */
+            transition: opacity 0.5s;
+        }
+
+        h2 {
+            color: var(--verde-neon);
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 1.5em;
+        }
+        
+        /* Controles de Fecha (Input y Botones) */
+        .controles-fecha {
+            margin-bottom: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 100%;
+            align-items: center;
+        }
+
+        #fechaInicioInput {
+            padding: 10px;
+            border: 1px solid var(--verde-neon);
+            background-color: var(--gris-oscuro);
+            color: var(--blanco);
+            border-radius: 5px;
+            font-size: 1em;
+            width: 80%;
+            text-align: center;
+        }
+        
+        #fechaInicioDisplay {
+            color: #ccc; 
+            margin-bottom: 10px; 
+            font-size: 0.9em; 
+            text-align: center;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s, box-shadow 0.3s;
+            width: 80%;
+        }
+
+        .btn-iniciar {
+            background-color: var(--verde-neon);
+            color: var(--negro-principal);
+        }
+
+        .btn-borrar {
+            background-color: var(--gris-oscuro);
+            color: var(--verde-neon);
+            border: 1px solid var(--verde-neon);
+        }
+
+        .btn-iniciar:hover {
+            box-shadow: 0 0 10px var(--verde-neon);
+        }
+
+        /* Estilos del Círculo (Reloj) SVG */
+        .contador-reloj {
+            position: relative;
+            width: 200px; 
+            height: 200px;
+            margin-bottom: 20px;
+        }
+
+        .contador-reloj svg {
+            transform: rotate(-90deg);
+            width: 100%;
+            height: 100%;
+        }
+
+        .reloj-fondo {
+            stroke: rgba(255, 255, 255, 0.2);
+            stroke-width: 10; 
+            fill: none;
+        }
+
+        .reloj-progreso {
+            stroke: var(--verde-neon);
+            stroke-width: 10;
+            fill: none;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 1s linear; 
+        }
+
+        /* Texto dentro del Círculo */
+        .tiempo-display {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: var(--blanco);
+        }
+
+        .dias-valor {
+            font-size: 3em; 
+            font-weight: bold;
+            text-shadow: 0 0 5px var(--verde-neon);
+            line-height: 1;
+        }
+        
+        .dias-label {
+             font-size: 1em;
+             color: var(--verde-neon);
+             margin-bottom: 5px;
+        }
+
+        .horas-detalle {
+            font-size: 0.9em;
+            color: var(--blanco);
+        }
+
+        /* --- Estilos para Citas Rotativas --- */
+        .citas-container {
+            margin-top: 30px;
+            padding: 15px;
+            background-color: var(--gris-oscuro);
+            border-radius: 8px;
+            border-left: 5px solid var(--verde-neon);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            font-style: italic;
+            box-shadow: 0 0 5px rgba(57, 255, 20, 0.5);
+        }
+
+        #citaTexto {
+            font-size: 0.9em;
+            color: var(--blanco);
+            margin: 0 0 5px 0;
+        }
+
+        .cita-autor {
+            font-size: 0.7em;
+            color: var(--verde-neon);
+            margin: 0;
+        }
+
+        .control-intervalo {
+            margin-top: 10px;
+            font-size: 0.8em;
+            color: #aaa;
+        }
+
+        .control-intervalo select {
+            background-color: var(--gris-oscuro);
+            color: var(--verde-neon);
+            border: 1px solid var(--verde-neon);
+            padding: 5px;
+            border-radius: 3px;
+        }
+        
+        /* --- ESTILOS COMPARTIDOS DE BOTONES FLOTANTES Y PANELES --- */
+
+        .pestaña-3d {
+            position: fixed;
+            width: 50px;
+            height: 50px;
+            background-color: var(--verde-neon);
+            border: 3px solid var(--negro-principal);
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.8), 
+                        0 0 20px var(--verde-neon);
+            transition: transform 0.2s, box-shadow 0.2s;
+            z-index: 50;
+        }
+
+        .pestaña-3d:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.8), 0 0 10px var(--verde-neon);
+        }
+        
+        .pestaña-3d span {
+            font-size: 1.5em;
+            line-height: 1;
+            color: var(--negro-principal);
+        }
+        
+        .pestaña-doce span {
+             font-size: 1.8em; 
+             font-weight: bold;
+        }
+
+        /* Posicionamiento específico de los botones */
+        .pestaña-mochila {
+            bottom: 20px; 
+            left: 20px; 
+        }
+        
+        .pestaña-guia {
+            bottom: 20px; 
+            right: 20px; 
+        }
+        
+        .pestaña-doce {
+            top: 20px; 
+            right: 20px; 
+        }
+        
+        .pestaña-emociones {
+            top: 20px; 
+            left: 20px; 
+            background-color: var(--rojo-neon); 
+            border-color: var(--blanco);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.8), 
+                        0 0 20px var(--rojo-neon); 
+        }
+
+        .pestaña-emociones span {
+            color: var(--negro-principal);
+            font-size: 1.5em; 
+        }
+
+        .pestaña-emociones:active {
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.8), 0 0 10px var(--rojo-neon);
+        }
+        
+        .pestaña-logout {
+            top: 80px; /* Debajo del 12 Pasos */
+            right: 20px;
+            background-color: #ff8c1a; /* Naranja para Logout */
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.8), 
+                        0 0 20px #ff8c1a;
+            width: auto;
+            border-radius: 10px;
+            padding: 5px 10px;
+            height: auto;
+            font-size: 0.8em;
+            z-index: 50;
+        }
+        .pestaña-logout span {
+            color: var(--negro-principal);
+            font-size: 1em;
+        }
+
+
+        /* --- ESTILOS COMPARTIDOS DE PANELES MODALES --- */
+        .mochila-panel, .guia-panel, .doce-pasos-panel, .emociones-panel, .auth-panel {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.95);
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        
+        .mochila-panel.visible, .guia-panel.visible, .doce-pasos-panel.visible, .emociones-panel.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        
+        .mochila-content, .guia-content, .doce-pasos-content, .emociones-content, .auth-content {
+            background-color: var(--negro-principal);
+            border: 2px solid var(--verde-neon);
+            border-radius: 15px;
+            padding: 30px;
+            max-width: 350px;
+            width: 85%;
+            box-shadow: 0 0 40px var(--verde-neon);
+            text-align: left;
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+        }
+        
+        .mochila-panel.visible .mochila-content, .guia-panel.visible .guia-content, .doce-pasos-panel.visible .doce-pasos-content, .emociones-panel.visible .emociones-content {
+            transform: scale(1);
+        }
+
+        .mochila-content h3, .guia-content h3, .doce-pasos-content h3, .emociones-content h3, .auth-content h3 {
+            color: var(--verde-neon);
+            margin-bottom: 15px;
+            text-align: center;
+            font-size: 1.4em;
+        }
+        
+        /* Botones de cierre para todos los paneles */
+        .btn-close-mochila, .btn-close-guia, .btn-close-doce {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            background: transparent;
+            border: none;
+            color: var(--verde-neon);
+            font-size: 1.8em;
+            cursor: pointer;
+            transition: text-shadow 0.2s;
+        }
+        
+        .btn-close-mochila:hover, .btn-close-guia:hover, .btn-close-doce:hover {
+            text-shadow: 0 0 10px var(--verde-neon);
+        }
+
+        /* Estilos específicos para la Autenticación */
+        .auth-panel {
+            display: flex; /* Muestra el panel de login al inicio */
+            opacity: 1; 
+            pointer-events: auto;
+            z-index: 101; 
+        }
+        
+        .auth-content {
+            text-align: center;
+            padding: 40px;
+        }
+
+        #authEmail, #authPassword {
+            width: 90%;
+            padding: 12px;
+            margin: 8px 0;
+            border: 1px solid var(--verde-neon);
+            background-color: var(--gris-oscuro);
+            color: var(--blanco);
+            border-radius: 5px;
+            font-size: 1em;
+        }
+
+        .auth-content button {
+            width: 95%;
+            margin-top: 15px;
+            background-color: var(--verde-neon);
+            color: var(--negro-principal);
+            padding: 12px;
+            font-size: 1em;
+            font-weight: bold;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        #authMessage {
+            color: var(--rojo-neon);
+            margin-top: 15px;
+            font-size: 0.9em;
+            min-height: 20px;
+        }
+
+        /* Estilos específicos para notas (Mochila) */
+        #notaInput {
+            width: 95%;
+            padding: 10px;
+            border: 1px solid var(--verde-neon);
+            background-color: var(--gris-oscuro);
+            color: var(--blanco);
+            border-radius: 5px;
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        #listaNotasGuardadas {
+            list-style: none;
+            padding: 0;
+            margin-top: 15px;
+        }
+
+        #listaNotasGuardadas li {
+            background-color: var(--gris-oscuro);
+            border: 1px solid rgba(57, 255, 20, 0.5);
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9em;
+            word-wrap: break-word; /* Para notas largas */
+        }
+
+        .btn-eliminar-nota {
+            background: none;
+            border: none;
+            color: red;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 1.2em;
+            transition: color 0.2s;
+            margin-left: 10px;
+            flex-shrink: 0;
+        }
+        
+        /* ------------------- RUEDA DE EMOCIONES ------------------- */
+        .emociones-panel .emociones-content {
+            max-width: 420px; 
+            width: 90%;
+            padding: 20px;
+            text-align: center;
+            max-height: 95vh;
+        }
+        
+        .rueda-contenedor {
+            position: relative;
+            width: 380px; 
+            height: 380px;
+            margin: 20px auto;
+            border: 3px solid var(--verde-neon);
+            border-radius: 50%;
+            box-shadow: 0 0 15px var(--verde-neon);
+            overflow: hidden; 
+        }
+
+        .base-sector {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            clip-path: polygon(50% 50%, 50% 0%, 90% 10%); 
+            transform-origin: 50% 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0.85;
+            cursor: pointer;
+        }
+        .base-sector:hover {
+            opacity: 1;
+            box-shadow: 0 0 15px var(--blanco) inset;
+        }
+
+        /* Colores y rotación de las 8 bases (45 grados por sector) */
+        .sector-base-ira { background-color: #ff073a; transform: rotate(0deg); } 
+        .sector-base-disgusto { background-color: #ff8c1a; transform: rotate(45deg); } 
+        .sector-base-miedo { background-color: #ffff00; transform: rotate(90deg); }
+        .sector-base-tristeza { background-color: #8cff19; transform: rotate(135deg); }
+        .sector-base-felicidad { background-color: #1a8cff; transform: rotate(180deg); }
+        .sector-base-sorpresa { background-color: #3d00b3; transform: rotate(225deg); } 
+        .sector-base-confianza { background-color: #ff00ff; transform: rotate(270deg); } 
+        .sector-base-anticipacion { background-color: #00ff80; transform: rotate(315deg); }
+        
+        /* Texto central */
+        .centro-rueda {
+            position: absolute; 
+            top: 50%; 
+            left: 50%; 
+            transform: translate(-50%, -50%); 
+            width: 100px; 
+            height: 100px; 
+            background-color: var(--negro-principal); 
+            border-radius: 50%; 
+            border: 3px solid var(--verde-neon); 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+            align-items: center;
+        }
+
+        /* Estilo base para los botones de emociones secundarias */
+        .emocion-boton {
+            padding: 10px 5px;
+            border: none;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.1s, box-shadow 0.2s;
+            text-shadow: 0 1px 1px rgba(0, 0, 0, 0.3);
+            font-size: 0.8em;
+        }
+
+        .emocion-boton:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 0 10px var(--verde-neon); 
+        }
+        
+        #emocionResultado {
+            min-height: 100px;
+            padding: 15px;
+            border: 1px solid var(--verde-neon);
+            border-radius: 8px;
+            text-align: left;
+            color: var(--blanco);
+            background-color: rgba(57, 255, 20, 0.1);
+            font-size: 0.9em;
+            line-height: 1.5;
+            margin-top: 20px;
+        }
+
+    </style>
+</head>
+<body>
+
+    <header class="banner">
+        <h1 class="app-title">OLSON</h1>
+    </header>
+
+    <main class="contador-container" id="mainAppContent">
+        <h2>Contador de Sobriedad</h2>
+        
+        <div id="fechaInicioDisplay">
+            Fecha de inicio: —
+        </div>
+
+        <div class="contador-reloj">
+            <svg viewBox="0 0 36 36" class="circular-chart">
+                <path class="reloj-fondo"
+                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                />
+                <path class="reloj-progreso"
+                    id="relojProgreso"
+                    stroke-dasharray="0, 100" 
+                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                />
+            </svg>
+
+            <div class="tiempo-display">
+                <span class="dias-label">Días</span>
+                <span class="dias-valor" id="dias">0</span>
+                <div class="horas-detalle" id="horas">0h 0m 0s</div>
+            </div>
+        </div>
+
+        <div class="controles-fecha">
+            <input type="datetime-local" id="fechaInicioInput" required>
+            
+            <button class="btn btn-iniciar" onclick="iniciarContador()">
+                INICIAR / ACTUALIZAR FECHA
+            </button>
+            
+            <button class="btn btn-borrar" onclick="borrarFecha()">
+                BORRAR FECHA
+            </button>
+        </div>
+        
+        <div class="citas-container">
+            <p id="citaTexto">"El primer paso no te lleva a donde quieres ir, pero te saca de donde estás."</p>
+            <p class="cita-autor" id="citaAutor">— Desconocido</p>
+            <div class="control-intervalo">
+                Cita cambia cada:
+                <select id="intervaloCitas" onchange="cambiarIntervalo()">
+                    <option value="30000">30 Segundos</option>
+                    <option value="60000" selected>1 Minuto</option>
+                    <option value="300000">5 Minutos</option>
+                    <option value="900000">15 Minutos</option>
+                </select>
+            </div>
+        </div>
+    </main>
+    
+    <div class="pestaña-3d pestaña-emociones" onclick="toggleEmocionesPanel(false)">
+        <span>😠</span>
+    </div>
+
+    <div class="pestaña-3d pestaña-doce" onclick="toggleDocePasosPanel(false)">
+        <span>12</span>
+    </div>
+    
+    <div class="pestaña-3d pestaña-mochila" onclick="toggleMochilaPanel(false)">
+        <span>🧠</span>
+    </div>
+
+    <div class="pestaña-3d pestaña-guia" onclick="toggleGuiaPanel(false)">
+        <span>🎒</span>
+    </div>
+    
+    <div class="pestaña-3d pestaña-logout" onclick="cerrarSesion()">
+        <span>Cerrar Sesión</span>
+    </div>
+    
+    <div class="auth-panel" id="authPanel">
+        <div class="auth-content">
+            <h3>Acceso OLSON</h3>
+            <p style="color: #ccc; margin-bottom: 20px; font-size: 0.9em;">Inicia sesión para guardar tu progreso y notas en la nube.</p>
+            
+            <input type="email" id="authEmail" placeholder="Correo electrónico" required>
+            <input type="password" id="authPassword" placeholder="Contraseña" required>
+            
+            <button onclick="iniciarSesion()">Iniciar Sesión</button>
+            <button onclick="registrarUsuario()" style="background-color: var(--gris-oscuro); color: var(--verde-neon); border: 1px solid var(--verde-neon);">Registrarse</button>
+
+            <p id="authMessage"></p>
+        </div>
+    </div>
+    
+    <div class="mochila-panel emociones-panel" id="emocionesPanel">
+        <div class="mochila-content emociones-content">
+            <button class="btn-close-mochila" onclick="toggleEmocionesPanel(true)">×</button>
+            <h3 style="font-size: 1.8em; letter-spacing: 3px; margin-bottom: 5px;">RUEDA DE LAS EMOCIONES</h3>
+            <p style="color: var(--verde-neon); font-size: 0.8em; margin-bottom: 20px;">OLSON | Herramienta de Conciencia</p>
+            [attachment_0](attachment)
+            <div class="rueda-contenedor">
+                <div class="base-sector sector-base-ira" onclick="mostrarDefinicion('Ira')"></div>
+                <div class="base-sector sector-base-disgusto" onclick="mostrarDefinicion('Disgusto')"></div>
+                <div class="base-sector sector-base-miedo" onclick="mostrarDefinicion('Miedo')"></div>
+                <div class="base-sector sector-base-tristeza" onclick="mostrarDefinicion('Tristeza')"></div>
+                <div class="base-sector sector-base-felicidad" onclick="mostrarDefinicion('Felicidad')"></div>
+                <div class="base-sector sector-base-sorpresa" onclick="mostrarDefinicion('Sorpresa')"></div>
+                <div class="base-sector sector-base-confianza" onclick="mostrarDefinicion('Confianza')"></div>
+                <div class="base-sector sector-base-anticipacion" onclick="mostrarDefinicion('Anticipación')"></div>
+                
+                <div class="centro-rueda">
+                    <span style="color: var(--verde-neon); font-weight: bold; font-size: 1.1em;">YO</span>
+                    <span style="color: var(--blanco); font-size: 0.7em;">Hoy</span>
+                </div>
+            </div>
+            
+            <h4 style="color: var(--blanco); font-size: 1.1em; margin-top: 15px; margin-bottom: 10px;">Otros Estados Emocionales</h4>
+            <div class="rueda-contenedor" style="width: 100%; height: auto; border: none; box-shadow: none; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                <button class="emocion-boton" style="background-color: #ff4081; color: white;" onclick="mostrarDefinicion('Pánico')">Pánico</button>
+                <button class="emocion-boton" style="background-color: #f00030; color: white;" onclick="mostrarDefinicion('Cólera')">Cólera</button>
+                <button class="emocion-boton" style="background-color: #ffbf00; color: black;" onclick="mostrarDefinicion('Terror')">Terror</button>
+                <button class="emocion-boton" style="background-color: #b3ff66; color: black;" onclick="mostrarDefinicion('Serenidad')">Serenidad</button>
+                <button class="emocion-boton" style="background-color: #80ffc0; color: black;" onclick="mostrarDefinicion('Optimismo')">Optimismo</button>
+                <button class="emocion-boton" style="background-color: #ff80ff; color: black;" onclick="mostrarDefinicion('Admiración')">Admiración</button>
+                <button class="emocion-boton" style="background-color: #6699ff; color: white;" onclick="mostrarDefinicion('Melancolía')">Melancolía</button>
+                <button class="emocion-boton" style="background-color: #c0c0c0; color: black;" onclick="mostrarDefinicion('Aburrimiento')">Aburrimiento</button>
+            </div>
+
+
+            <div id="emocionResultado">
+                *Selecciona una emoción base (los sectores de color) en la rueda.* Esta herramienta te ayudará a identificar la necesidad detrás de tu sentimiento y a gestionarlo de forma sobria.
+            </div>
+            
+        </div>
+    </div>
+    
+    <div class="doce-pasos-panel" id="docePasosPanel">
+        <div class="doce-pasos-content">
+            <button class="btn-close-doce" onclick="toggleDocePasosPanel(true)">×</button>
+            <h3>12 Pasos de Alcohólicos Anónimos</h3>
+            
+            <p style="text-align: center; margin-top: -10px; margin-bottom: 20px;">
+                <a href="https://aa.org/pages/es_ES/los-doce-pasos" target="_blank" style="color: var(--verde-neon); text-decoration: none; font-weight: bold; border-bottom: 1px dashed var(--verde-neon);">
+                    Ver en el sitio oficial de AA
+                </a>
+            </p>
+            <ol class="doce-pasos-lista">
+                <li>Admitimos que éramos impotentes ante el alcohol, que nuestras vidas se habían vuelto ingobernables.</li>
+                <li>Llegamos a creer que un Poder superior a nosotros mismos podría devolvernos el sano juicio.</li>
+                <li>Decidimos poner nuestra voluntad y nuestras vidas al cuidado de Dios, como nosotros lo concebimos.</li>
+                <li>Sin temor hicimos un minucioso inventario moral de nosotros mismos.</li>
+                <li>Admitimos ante Dios, ante nosotros mismos y ante otro ser humano, la naturaleza exacta de nuestros defectos.</li>
+                <li>Estuvimos enteramente dispuestos a dejar que Dios nos liberase de todos estos defectos de carácter.</li>
+                <li>Humildemente le pedimos que nos liberase de nuestros defectos.</li>
+                <li>Hicimos una lista de todas aquellas personas a quienes habíamos ofendido y estuvimos dispuestos a reparar el daño que les causamos.</li>
+                <li>Reparamos directamente a cuantos nos fue posible el daño causado, excepto cuando el hacerlo implicaba perjuicio para ellos o para otros.</li>
+                <li>Continuamos haciendo nuestro inventario personal y cuando nos equivocábamos lo admitíamos inmediatamente.</li>
+                <li>Buscamos, a través de la oración y la meditación, mejorar nuestro contacto consciente con Dios, como nosotros lo concebimos, pidiéndole solamente que nos dejase conocer Su voluntad para con nosotros y nos diese la fortaleza para cumplirla.</li>
+                <li>Habiendo obtenido un despertar espiritual como resultado de estos Pasos, tratamos de llevar este mensaje a otros alcohólicos y de practicar estos principios en todos nuestros asuntos.</li>
+            </ol>
+        </div>
+    </div>
+    
+    <div class="mochila-panel" id="mochilaPanel">
+        <div class="mochila-content">
+            <button class="btn-close-mochila" onclick="toggleMochilaPanel(true)">×</button>
+            <h3>🧠 Tu Mochila Emocional: Guía de Detección</h3>
+            
+            <div class="guia-deteccion">
+                <ol>
+                    <li>*Reacciones desproporcionadas:* Si algo pequeño te dispara fuerte, ahí no estás reaccionando al presente. Es un eco de algo viejo que sigue vivo en tu sistema.</li>
+                    <li>*Patrón que se repite cada trimestre:* Cuando ves que siempre acabas en el mismo tipo de problema con personas distintas, no es azar. Es un proceso interno que no se ha actualizado.</li>
+                    <li>*Pensamientos automáticos de autosabotaje:* “Seguro va a salir mal.” “No soy suficiente.” “Me van a dejar.” Son como scripts heredados que se ejecutan solos.</li>
+                    <li>*Carga de culpa ajena:* Te sientes responsable de cosas que no controlas. Esto suele venir de dinámicas familiares antiguas.</li>
+                    <li>*Sensación de vacío o desgaste:* Como si estuvieras rindiendo bien en la operación pero por dentro la energía ya no te alcanza. Ese vacío no aparece por capricho; es el síntoma de temas pendientes.</li>
+                    <li>*Relaciones donde das de más o recibes de menos:* Ese desbalance es clásico cuando hay heridas todavía activas.</li>
+                </ol>
+            </div>
+
+            <h4 class="subtitulo-mochila">✍ Notas Personales / Herramientas (Guardadas en tu cuenta)</h4>
+            
+            <div class="notas-personales">
+                <textarea id="notaInput" placeholder="Añade una razón para seguir, un contacto de apoyo o una herramienta de afrontamiento."></textarea>
+                <button class="btn btn-iniciar" style="width: 100%; margin-top: 10px;" onclick="guardarNotaMochila()">
+                    GUARDAR NOTA
+                </button>
+                
+                <ul id="listaNotasGuardadas">
+                    </ul>
+            </div>
+        </div>
+    </div>
+    
+    <div class="guia-panel" id="guiaPanel">
+        <div class="guia-content">
+            <button class="btn-close-guia" onclick="toggleGuiaPanel(true)">×</button>
+            <h3>🎒 Guía de Reconstrucción Emocional</h3>
+            
+            <div class="pasos-reconstruccion">
+                <ol>
+                    <li>*Vacía la mochila vieja:* Identifica lo que te duele, reconoce cómo influye, y separa lo que sí es tuyo de lo que te encajaron otros.</li>
+                    <li>*Define qué quiere tu yo actual, no tu yo herido:* Piensa en qué tipo de relaciones quieres, qué límites son no negociables, qué valores quieres operar, y qué estilo de vida te da estabilidad.</li>
+                    <li>*Llénala con recursos, no con defensas:* En la nueva mochila solo entran Autoconciencia, Regulación emocional, Autoestima realista, Responsabilidad personal y Red de relaciones sanas.</li>
+                    <li>*Diseña nuevos estándares:* Todo líder interno necesita KPI’s emocionales: ¿Qué trato acepto? ¿Qué trato ofrezco? ¿Cuándo me retiro? ¿Qué prometo y qué cumplo conmigo?</li>
+                    <li>*Construye hábitos que sostengan la versión nueva:* Pequeños, consistentes, sostenibles: Espacios de reflexión, Movimiento físico diario, Rutinas para bajar estrés, Conversaciones honestas, Elecciones basadas en valor, no impulso.</li>
+                    <li>*Deja espacio vacío:* No llenes la mochila a tope. El espacio libre permite crecer sin colapsar. Ahí entra la creatividad, los vínculos nuevos, las oportunidades.</li>
+                    <li>*Prueba, ajusta, vuelve a probar:* Una mochila emocional no se arma en un día. La ajustas como quien ajusta una estrategia en tiempo real: lo que no funciona, se elimina. Lo que suma, se queda.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ---------------------------------------------------------------------------------
+        // 1. CONFIGURACIÓN DE FIREBASE (¡INTEGRACIÓN EXITOSA!)
+        // ---------------------------------------------------------------------------------
+        // Este bloque es tu configuración REAL obtenida de la Consola de Firebase.
+        const firebaseConfig = {
+            apiKey: "AIzaSyDJcblipfpJI4HVwFXSQHLdpfaeOXmrKVE",
+            authDomain: "oddoner-app.firebaseapp.com",
+            projectId: "oddoner-app",
+            storageBucket: "oddoner-app.firebasestorage.app",
+            messagingSenderId: "101093701466",
+            appId: "1:101093701466:web:0d7a960eab5fece200a563"
+        }; 
+
+
+        // Inicializa Firebase
+        firebase.initializeApp(firebaseConfig);
+
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+        let usuarioActual = null;
+        
+        const COLECCION_USUARIOS = "usuarios";
+        
+        // --- CONSTANTES LOCALES (Solo para Citas, para que carguen rápido) ---
+        const intervaloKey = 'olson_intervalo_citas';
+        // ----------------------------------------------------
+
+        const circunferencia = 100; 
+        const relojProgreso = document.getElementById('relojProgreso');
+        const diasDisplay = document.getElementById('dias');
+        const horasDisplay = document.getElementById('horas');
+        const inputFecha = document.getElementById('fechaInicioInput');
+        const fechaInicioDisplay = document.getElementById('fechaInicioDisplay');
+        const intervaloCitasSelect = document.getElementById('intervaloCitas');
+        
+        // Variables para los Paneles Modales
+        const mochilaPanel = document.getElementById('mochilaPanel');
+        const guiaPanel = document.getElementById('guiaPanel'); 
+        const docePasosPanel = document.getElementById('docePasosPanel'); 
+        const emocionesPanel = document.getElementById('emocionesPanel'); 
+        const emocionResultado = document.getElementById('emocionResultado'); 
+        const authPanel = document.getElementById('authPanel');
+        const mainAppContent = document.getElementById('mainAppContent');
+
+        const notaInput = document.getElementById('notaInput');
+        const listaNotasGuardadas = document.getElementById('listaNotasGuardadas');
+        
+        let intervalIdCitas; 
+
+        relojProgreso.style.strokeDasharray = ${circunferencia}, ${circunferencia};
+
+
+        // ----------------------------------------------------
+        // 2. LÓGICA DE AUTENTICACIÓN (LOGIN/REGISTRO)
+        // ----------------------------------------------------
+
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                // Usuario CONECTADO
+                usuarioActual = user;
+                authPanel.style.display = 'none';
+                mainAppContent.style.opacity = '1';
+                
+                // Muestra un mensaje de bienvenida
+                console.log("Usuario conectado:", user.uid);
+                
+                // Carga todos los datos del usuario
+                cargarDatosUsuario(user.uid); 
+            } else {
+                // Usuario DESCONECTADO
+                usuarioActual = null;
+                authPanel.style.display = 'flex';
+                mainAppContent.style.opacity = '0.3'; // Deshabilita la app sin logear
+                
+                // Limpia la interfaz para el estado "desconectado"
+                diasDisplay.textContent = '—';
+                horasDisplay.textContent = 'Inicia Sesión';
+                fechaInicioDisplay.textContent = 'Fecha de inicio: —';
+                listaNotasGuardadas.innerHTML = <li style="text-align: center; opacity: 0.7; background: transparent; border: none;">Inicia sesión para ver tus notas.</li>;
+                
+                // Ocultar cualquier panel abierto
+                closeAllPanels(); 
+            }
+        });
+
+
+        function registrarUsuario() {
+            const email = document.getElementById('authEmail').value;
+            const password = document.getElementById('authPassword').value;
+            const messageEl = document.getElementById('authMessage');
+            messageEl.textContent = 'Registrando...';
+
+            auth.createUserWithEmailAndPassword(email, password)
+                .then((userCredential) => {
+                    messageEl.textContent = "Registro exitoso. Iniciando sesión...";
+                    // Firestore se encarga de crear el documento de usuario en el siguiente paso
+                })
+                .catch((error) => {
+                    messageEl.textContent = "Error al registrar: " + error.message;
+                });
+        }
+
+        function iniciarSesion() {
+            const email = document.getElementById('authEmail').value;
+            const password = document.getElementById('authPassword').value;
+            const messageEl = document.getElementById('authMessage');
+            messageEl.textContent = 'Iniciando sesión...';
+
+            auth.signInWithEmailAndPassword(email, password)
+                .then((userCredential) => {
+                    messageEl.textContent = "Sesión iniciada correctamente.";
+                })
+                .catch((error) => {
+                    document.getElementById('authMessage').textContent = "Error de inicio de sesión: " + error.message;
+                });
+        }
+        
+        function cerrarSesion() {
+            if (!usuarioActual) return;
+            if (!confirm('¿Estás seguro de que quieres cerrar la sesión?')) return;
+            
+            auth.signOut().then(() => {
+                alert("Sesión cerrada.");
+            }).catch((error) => {
+                console.error("Error al cerrar sesión:", error);
+                alert("Error al cerrar sesión.");
+            });
+        }
+
+
+        // ----------------------------------------------------
+        // 3. CARGA DE DATOS DEL USUARIO (FECHA Y NOTAS)
+        // ----------------------------------------------------
+        
+        function cargarDatosUsuario(uid) {
+            // 3.1 Cargar fecha de sobriedad
+            db.collection(COLECCION_USUARIOS).doc(uid).get().then((doc) => {
+                if (doc.exists && doc.data().fechaSobriedad) {
+                    const fechaStr = doc.data().fechaSobriedad;
+                    // El contador usa la fecha del servidor, pero el input necesita el formato local
+                    const fecha = new Date(fechaStr);
+                    const yyyy = fecha.getFullYear();
+                    const mm = String(fecha.getMonth() + 1).padStart(2, '0');
+                    const dd = String(fecha.getDate()).padStart(2, '0');
+                    const hh = String(fecha.getHours()).padStart(2, '0');
+                    const min = String(fecha.getMinutes()).padStart(2, '0');
+                    
+                    inputFecha.value = ${yyyy}-${mm}-${dd}T${hh}:${min};
+                    
+                    actualizarContador(fechaStr); // Inicia el contador con la fecha de la base de datos
+                } else {
+                    // No hay fecha guardada o es nuevo usuario
+                    inputFecha.value = '';
+                    actualizarContador(null);
+                }
+            }).catch((error) => {
+                console.error("Error al cargar la fecha de sobriedad:", error);
+            });
+            
+            // 3.2 Cargar notas
+            cargarNotasMochila();
+        }
+
+        // ----------------------------------------------------
+        // 4. LÓGICA DEL CONTADOR (Ahora usa la fecha de Firestore)
+        // ----------------------------------------------------
+
+        function iniciarContador() {
+            if (!usuarioActual) {
+                alert("Por favor, inicia sesión para guardar tu contador.");
+                return;
+            }
+            const valorInput = inputFecha.value;
+
+            if (!valorInput) {
+                alert('Por favor, selecciona una fecha y hora de inicio.');
+                return;
+            }
+
+            const nuevaFechaStr = new Date(valorInput).toISOString();
+            
+            // Guardar la fecha en Firestore
+            db.collection(COLECCION_USUARIOS).doc(usuarioActual.uid).set({
+                fechaSobriedad: nuevaFechaStr 
+            }, { merge: true }) 
+            .then(() => {
+                alert("Fecha de sobriedad actualizada y guardada en la nube.");
+                actualizarContador(nuevaFechaStr);
+            })
+            .catch((error) => {
+                console.error("Error al guardar la fecha:", error);
+                alert("Error al guardar la fecha en la nube.");
+            });
+        }
+
+        function borrarFecha() {
+            if (!usuarioActual) return;
+            if (!confirm('¿Estás seguro de que quieres borrar tu fecha de sobriedad de la nube?')) return;
+            
+            // Borrar el campo 'fechaSobriedad' de Firestore
+            db.collection(COLECCION_USUARIOS).doc(usuarioActual.uid).update({
+                fechaSobriedad: firebase.firestore.FieldValue.delete()
+            })
+            .then(() => {
+                inputFecha.value = ''; 
+                diasDisplay.textContent = '0';
+                horasDisplay.textContent = 'Inicia tu contador';
+                fechaInicioDisplay.textContent = 'Fecha de inicio: —';
+                relojProgreso.style.strokeDashoffset = circunferencia; 
+                alert('Contador de sobriedad borrado de la nube.');
+            })
+            .catch((error) => {
+                console.error("Error al borrar la fecha:", error);
+                alert("Error al borrar la fecha de la nube.");
+            });
+        }
+        
+        // La función de actualización ahora toma la fecha como argumento
+        function actualizarContador(fechaStr = null) {
+            const now = new Date();
+            
+            if (!fechaStr) {
+                // Si el usuario está conectado pero no tiene fecha
+                const fechaGuardada = inputFecha.value ? new Date(inputFecha.value).toISOString() : null;
+                fechaStr = fechaGuardada;
+            }
+
+            if (!fechaStr) {
+                diasDisplay.textContent = '—';
+                horasDisplay.textContent = 'Selecciona una fecha y hora.';
+                fechaInicioDisplay.textContent = 'Fecha de inicio: No establecida';
+                relojProgreso.style.strokeDashoffset = circunferencia;
+                return;
+            }
+
+            const fechaInicio = new Date(fechaStr);
+            const diferenciaMs = now.getTime() - fechaInicio.getTime();
+            
+            const fechaFormateada = fechaInicio.toLocaleDateString('es-ES', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric', 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            });
+            fechaInicioDisplay.textContent = Fecha de inicio: ${fechaFormateada};
+
+            if (diferenciaMs < 0) {
+                diasDisplay.textContent = '—';
+                horasDisplay.textContent = 'La fecha es futura. Actualiza.';
+                relojProgreso.style.strokeDashoffset = circunferencia;
+                return;
+            }
+
+            const segundosTotales = Math.floor(diferenciaMs / 1000);
+            
+            const segundos = segundosTotales % 60;
+            const minutos = Math.floor(segundosTotales / 60) % 60;
+            const horas = Math.floor(segundosTotales / 3600) % 24;
+            const dias = Math.floor(segundosTotales / 86400);
+
+            diasDisplay.textContent = dias;
+            horasDisplay.textContent = ${horas}h ${minutos}m ${segundos}s;
+            
+            const porcentajeProgreso = (segundos / 60) * circunferencia; 
+            const offset = circunferencia - porcentajeProgreso;
+            relojProgreso.style.strokeDashoffset = offset;
+        }
+
+
+        // ----------------------------------------------------
+        // 5. LÓGICA DE NOTAS (Ahora usan la colección 'notas' del usuario)
+        // ----------------------------------------------------
+        
+        function cargarNotasMochila() {
+            listaNotasGuardadas.innerHTML = '';
+            if (!usuarioActual) return;
+
+            // Obtener notas de la subcolección 'notas' del usuario actual
+            db.collection(COLECCION_USUARIOS).doc(usuarioActual.uid).collection("notas").orderBy("timestamp", "desc").get().then((querySnapshot) => {
+                
+                const notas = [];
+                querySnapshot.forEach((doc) => {
+                    // Guardamos el ID del documento de Firestore para poder eliminarlo
+                    notas.push({ id: doc.id, texto: doc.data().texto });
+                });
+
+                if (notas.length === 0) {
+                    listaNotasGuardadas.innerHTML = <li style="text-align: center; opacity: 0.7; background: transparent; border: none;">Tu mochila está vacía. Añade una herramienta.</li>;
+                    return;
+                }
+
+                notas.forEach((nota) => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <span>${nota.texto}</span>
+                        <button class="btn-eliminar-nota" onclick="eliminarNotaMochila('${nota.id}')">×</button>
+                    `;
+                    listaNotasGuardadas.appendChild(li);
+                });
+
+            }).catch((error) => {
+                console.error("Error al cargar notas: ", error);
+                alert("Error al cargar las notas de la nube.");
+            });
+        }
+
+        function guardarNotaMochila() {
+            if (!usuarioActual) {
+                alert("Inicia sesión para guardar notas en la nube.");
+                return;
+            }
+            const nota = notaInput.value.trim();
+            if (nota === '') {
+                alert('Por favor, escribe una nota antes de guardar.');
+                return;
+            }
+
+            // Guardar en la subcolección 'notas'
+            db.collection(COLECCION_USUARIOS).doc(usuarioActual.uid).collection("notas").add({
+                texto: nota,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp() // Para ordenar
+            })
+            .then(() => {
+                notaInput.value = '';
+                cargarNotasMochila();
+                alert('Herramienta añadida a tu Mochila Emocional y guardada en la nube.');
+            })
+            .catch((error) => {
+                console.error("Error al guardar nota:", error);
+                alert("Error al guardar la nota en la nube.");
+            });
+        }
+
+        function eliminarNotaMochila(docId) {
+            if (!usuarioActual) return;
+            if (!confirm('¿Estás seguro de que quieres eliminar esta nota de tu mochila?')) return;
+
+            // Eliminar el documento por su ID en la subcolección
+            db.collection(COLECCION_USUARIOS).doc(usuarioActual.uid).collection("notas").doc(docId).delete()
+            .then(() => {
+                cargarNotasMochila();
+            })
+            .catch((error) => {
+                console.error("Error al eliminar nota:", error);
+                alert("Error al eliminar la nota de la nube.");
+            });
+        }
+
+
+        // ----------------------------------------------------
+        // 6. LÓGICA DE PANELES MODALES (Abrir/Cerrar)
+        // ----------------------------------------------------
+        
+        function closeAllPanels() {
+            mochilaPanel.classList.remove('visible');
+            guiaPanel.classList.remove('visible');
+            docePasosPanel.classList.remove('visible');
+            emocionesPanel.classList.remove('visible'); 
+        }
+
+        function toggleMochilaPanel(closing) {
+            if (!closing) closeAllPanels();
+            mochilaPanel.classList.toggle('visible');
+            if (mochilaPanel.classList.contains('visible') && usuarioActual) {
+                cargarNotasMochila(); 
+            }
+        }
+
+        function toggleGuiaPanel(closing) {
+            if (!closing) closeAllPanels();
+            guiaPanel.classList.toggle('visible');
+        }
+        
+        function toggleDocePasosPanel(closing) { 
+            if (!closing) closeAllPanels();
+            docePasosPanel.classList.toggle('visible');
+        }
+        
+        function toggleEmocionesPanel(closing) { 
+            if (!closing) closeAllPanels();
+            emocionesPanel.classList.toggle('visible');
+            if (emocionesPanel.classList.contains('visible')) {
+                emocionResultado.innerHTML = **Selecciona una emoción base (los sectores de color) en la rueda o un estado en los botones de abajo.**;
+            }
+        }
+
+        // ----------------------------------------------------
+        // 7. LÓGICA DE LA RUEDA DE EMOCIONES
+        // ----------------------------------------------------
+
+        const definicionesEmociones = {
+            // EMOCIONES PRIMARIAS (Nivel Central - Sectores)
+            'Felicidad': {
+                descripcion: "Satisfacción y gozo. Indica que tus necesidades están cubiertas.",
+                busqueda: "Estoy bien. ¿Cómo puedo sostener este sentimiento sin euforia? Practica la *gratitud* y la *presencia*.",
+                color: '#39ff14' 
+            },
+            'Confianza': {
+                descripcion: "Sentimiento de seguridad y certeza. Te permite establecer lazos y tomar riesgos calculados.",
+                busqueda: "¿En quién o en qué estoy depositando mi *confianza? **Reconoce tus logros* (Paso 10) para construir confianza interna.",
+                color: '#ff00ff'
+            },
+            'Anticipación': {
+                descripcion: "Orientación al futuro, puede ser esperanza o preocupación.",
+                busqueda: "¿Qué estoy *esperando? Si es preocupación, estoy viviendo en el futuro: **vuelve al 'Solo por Hoy'* y concéntrate en la tarea inmediata.",
+                color: '#00ff80'
+            },
+            'Ira': {
+                descripcion: "Respuesta a una injusticia o a un límite que ha sido cruzado. Emoción de *límites* y *acción*.",
+                busqueda: "¿Qué *límite* se cruzó? ¿Es *resentimiento? Nombra tu **necesidad no satisfecha. No actúes. **Llama* a tu padrino.",
+                color: '#ff073a'
+            },
+            'Disgusto': {
+                descripcion: "Repulsión o rechazo hacia algo tóxico o dañino. Te protege.",
+                busqueda: "¿Qué estoy *rechazando* o *evitando? ¿Amenaza mi **sobriedad? **Aléjate* y busca un *lugar seguro* o una reunión.",
+                color: '#ff8c1a'
+            },
+            'Miedo': {
+                descripcion: "Alarma ante un peligro real o percibido. Puede paralizarte o hacerte huir.",
+                busqueda: "Identifica la fuente de la *ansiedad. ¿Es real o imaginaria? **Respira*, y pide a tu Poder Superior la fortaleza para enfrentarlo.",
+                color: '#ffff00'
+            },
+            'Tristeza': {
+                descripcion: "Reacción a una pérdida, desilusión o separación. Es un proceso de sanación.",
+                busqueda: "¿Qué estoy *dueliendo? Evita el **aislamiento. Necesitas **tiempo, **gentileza* contigo mismo y *permiso* para sentir.",
+                color: '#8cff19'
+            },
+            'Sorpresa': {
+                descripcion: "Reacción breve ante algo inesperado. Requiere una pausa para reorientar.",
+                busqueda: "Toma una *pausa. No tomes **decisiones impulsivas*. Observa la situación con calma antes de reaccionar.",
+                color: '#1a8cff'
+            },
+            // EMOCIONES SECUNDARIAS (Combinaciones/Intensidades - Más detalle)
+            'Pánico': {
+                descripcion: "Miedo paralizante, intensidad máxima.",
+                busqueda: "Esto es una *emergencia. Concéntrate en la **respiración 4-7-8. Busca ayuda **profesional o de programa inmediatamente*.",
+                color: '#ff4081' 
+            },
+            'Cólera': {
+                descripcion: "Ira extrema y destructiva. Peligro de actuar impulsivamente.",
+                busqueda: "Estás en el *Punto Rojo. **Escribe* lo que sientes (Paso 10). *Aísla* el pensamiento del resentimiento. NO actúes.",
+                color: '#f00030' 
+            },
+            'Terror': {
+                descripcion: "Miedo extremo, te sientes indefenso.",
+                busqueda: "Busca un *lugar seguro* y repite una *Oración de la Serenidad* lenta y repetidamente. *Conéctate* con alguien.",
+                color: '#ffbf00' 
+            },
+            'Serenidad': {
+                descripcion: "Felicidad tranquila, paz interior.",
+                busqueda: "Aprecia este momento. Usa esta *calma* para *reflexionar* y *planificar* (meditación - Paso 11).",
+                color: '#b3ff66' 
+            },
+            'Optimismo': {
+                descripcion: "Anticipación positiva y esperanza activa.",
+                busqueda: "Usa esta *energía* para tomar *acciones constructivas*. ¿Qué paso puedes practicar hoy con esta buena actitud?",
+                color: '#80ffc0' 
+            },
+            'Admiración': {
+                descripcion: "Confianza con profundo respeto. Te inspira.",
+                busqueda: "¿Qué *cualidad admirable* ves en los demás? ¿Cómo puedes cultivar esa cualidad en tu *propio carácter*?",
+                color: '#ff80ff' 
+            },
+            'Melancolía': {
+                descripcion: "Tristeza profunda pero sin acción.",
+                busqueda: "Estás sintiendo el dolor. *Permítete el luto. Evita la rumiación. ¿Puedes hacer una **pequeña acción positiva*?",
+                color: '#6699ff' 
+            },
+            'Aburrimiento': {
+                descripcion: "Disgusto y falta de interés. Peligro de buscar 'acción' fácil.",
+                busqueda: "El aburrimiento es la antesala de la *recidiva mental. Tienes energía latente. ¡Haz servicio*! Llama a un recién llegado.",
+                color: '#c0c0c0' 
+            }
+        };
+
+        function mostrarDefinicion(emocion) {
+            const def = definicionesEmociones[emocion];
+            
+            emocionResultado.innerHTML = `
+                <p style="color: ${def.color}; font-size: 1.2em; margin-bottom: 5px; font-weight: bold;">${emocion.toUpperCase()}</p>
+                <p>${def.descripcion}</p>
+                <p style="margin-top: 10px;">*Preguntas clave:* ${def.busqueda}</p>
+            `;
+        }
+        
+        // ----------------------------------------------------
+        // 8. LÓGICA DE CITAS ROTATIVAS (Mantenida local)
+        // ----------------------------------------------------
+
+        const citas = [
+            { texto: "Rara vez hemos visto fallar a una persona que haya seguido cabalmente nuestro camino.", autor: "Libro Grande de AA" },
+            { texto: "La vida adquirirá para nosotros un nuevo significado.", autor: "Libro Grande de AA" },
+            { texto: "Estábamos en el lugar donde Dios podía y quería revelarse a nosotros.", autor: "Libro Grande de AA" },
+            { texto: "La acción es la palabra clave.", autor: "Libro Grande de AA" },
+            { texto: "La honestidad sin reservas es esencial.", autor: "Libro Grande de AA" },
+            { texto: "Si Dios puede hacer por nosotros lo que no podemos hacer por nosotros mismos, ¿por qué no pedirle que lo haga?", autor: "Libro Grande de AA" },
+            { texto: "Solo por hoy.", autor: "Libro Grande de AA" },
+            { texto: "El resentimiento es el enemigo número uno.", autor: "Viviendo en Sobriedad (BOB)" },
+            { texto: "La humildad no es pensar menos de ti mismo, sino pensar menos en ti mismo.", autor: "Viviendo en Sobriedad (BOB)" },
+            { texto: "La paciencia no es la capacidad de esperar, sino la capacidad de mantener una buena actitud mientras esperas.", autor: "Anónimo" },
+            { texto: "Cuando uno cambia la manera de ver las cosas, las cosas que mira cambian.", autor: "Anónimo" },
+            { texto: "El camino más corto para la sobriedad es el que atraviesa los 12 Pasos.", autor: "Anónimo" }
+        ];
+
+        function mostrarCitaAleatoria() {
+            const indice = Math.floor(Math.random() * citas.length);
+            const cita = citas[indice];
+            
+            document.getElementById('citaTexto').textContent = "${cita.texto}";
+            document.getElementById('citaAutor').textContent = — ${cita.autor};
+        }
+
+        function cargarIntervaloInicial() {
+            const intervaloGuardado = localStorage.getItem(intervaloKey);
+            if (intervaloGuardado) {
+                intervaloCitasSelect.value = intervaloGuardado;
+            } else {
+                localStorage.setItem(intervaloKey, 60000); 
+            }
+        }
+        
+        function cambiarIntervalo() {
+            clearInterval(intervalIdCitas);
+            
+            const nuevoIntervalo = parseInt(intervaloCitasSelect.value);
+            
+            localStorage.setItem(intervaloKey, nuevoIntervalo);
+            
+            iniciarIntervaloCitas();
+        }
+
+        function iniciarIntervaloCitas() {
+             const intervaloMs = parseInt(localStorage.getItem(intervaloKey) || 60000);
+             
+             mostrarCitaAleatoria(); 
+
+             intervalIdCitas = setInterval(mostrarCitaAleatoria, intervaloMs);
+        }
+
+        // ----------------------------------------------------
+        // 9. INICIO DE LA APLICACIÓN
+        // ----------------------------------------------------
+        
+        cargarIntervaloInicial();
+        iniciarIntervaloCitas();
+        
+        // Ejecutar el contador cada segundo (se actualiza solo si hay usuario/fecha)
+        setInterval(() => {
+            // Busca la fecha en el input para mantener la continuidad visual si hay una
+            const fechaStr = inputFecha.value ? new Date(inputFecha.value).toISOString() : null;
+            actualizarContador(fechaStr);
+        }, 1000); 
+    </script>
+
+</body>
+</html>
